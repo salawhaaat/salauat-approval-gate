@@ -1,79 +1,537 @@
 <!doctype html>
-<!--
-  YOUR PERSONA PAGE. This is a skeleton; the UI is yours to design (25 points, optional).
-  Any approach is fine: edit this file, replace it with a built React/Vue/Svelte app in this folder,
-  or write plain JS. wrapper/serve.py serves everything in wrapper/ui/, with persona.html at "/".
-  Offline only: no CDNs or external services at demo time.
-
-  WHAT THE PAGE MUST DO (what judges score)
-    1. SEND AN INPUT, GET A RESPONSE: a draft goes to POST /decide (your wrapper), and the page shows the
-       decision, the reason, the evidence, and whether the mock action ran.
-    2. SIMULATE THE ACTION FROM A TEST INPUT: let the user pick a sample input (GET /api/samples?persona=...),
-       send it, and show the gate working: APPROVE -> the action ran; HOLD/BLOCK -> the action did NOT run.
-    3. Make it usable by someone in your persona's job: clear risk, errors shown plainly, a review step.
-
-  RULES
-    - Decisions come only from POST /decide. Do not decide, call the mock, or run the action in the browser.
-    - Latest test-run results are NOT your job: run `python3 gate.py results` for the color-coded viewer.
--->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TODO: your page title</title>
+<title>Customer Support Email Gateway</title>
 <style>
-  /* TODO: design it. Think about who uses this: the person who is about to send / submit / publish. */
-  body { font: 16px/1.5 system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; }
-  textarea { width: 100%; min-height: 8rem; }
+  :root {
+    --bg: #f3f4f6; --text: #1f2937; --border: #d1d5db; 
+    --primary: #2563eb; --primary-hover: #1d4ed8;
+    --approve: #10b981; --hold: #f59e0b; --block: #ef4444;
+    --panel-bg: #ffffff;
+  }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 2rem; line-height: 1.5; }
+  .container { display: flex; gap: 2rem; max-width: 1400px; margin: 0 auto; align-items: flex-start; }
+  .col { flex: 1; display: flex; flex-direction: column; gap: 1.5rem; min-width: 300px; }
+  .panel { background: var(--panel-bg); padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  h1 { font-size: 1.5rem; margin-top: 0; }
+  h2 { font-size: 1.25rem; margin: 0 0 1rem 0; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  
+  .form-group { margin-bottom: 1rem; }
+  label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.875rem; }
+  textarea, input, select { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 0.375rem; font-family: inherit; font-size: 0.875rem; box-sizing: border-box; }
+  textarea { min-height: 200px; resize: vertical; }
+  .row { display: flex; gap: 1rem; }
+  .row > div { flex: 1; }
+  
+  button { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.375rem; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 1rem; width: 100%; }
+  button:hover { background: var(--primary-hover); }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  
+  .samples { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .samples button { background: #e5e7eb; color: #374151; padding: 0.4rem 0.8rem; width: auto; font-size: 0.875rem; border-radius: 999px; }
+  .samples button:hover { background: #d1d5db; }
+  
+  .badge { display: inline-block; padding: 0.5rem 1.5rem; border-radius: 0.375rem; font-weight: 800; color: white; font-size: 1.5rem; letter-spacing: 0.05em; }
+  .APPROVE { background-color: var(--approve); }
+  .HOLD { background-color: var(--hold); }
+  .BLOCK { background-color: var(--block); }
+  .NONE { background-color: #9ca3af; color: white; }
+  .text-APPROVE { color: var(--approve); }
+  .text-HOLD { color: var(--hold); }
+  .text-BLOCK { color: var(--block); }
+
+  .action-panel { margin-top: 1.5rem; padding: 1.5rem; border-radius: 0.5rem; text-align: center; font-weight: bold; border: 2px dashed var(--border); color: #6b7280; font-size: 1.1rem; }
+  .action-panel.executed { border: 2px solid var(--approve); background-color: #d1fae5; color: #065f46; }
+  
+  .result-section { margin-top: 1.5rem; background: #f9fafb; padding: 1rem; border-radius: 0.375rem; border: 1px solid var(--border); }
+  .result-section h3 { margin-top: 0; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.5rem; }
+  .evidence-list { margin: 0; padding-left: 1.5rem; font-size: 0.875rem; }
+  
+  .metrics { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+  .metric-box { background: white; border: 1px solid var(--border); padding: 0.75rem; border-radius: 0.375rem; flex: 1; min-width: 120px; }
+  .metric-label { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+  .metric-value { font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; }
+  
+  .history-item { border-left: 4px solid var(--border); padding: 0.75rem 1rem; margin-bottom: 1rem; background: #f9fafb; border-radius: 0 0.375rem 0.375rem 0; font-size: 0.875rem; }
+  .history-item.APPROVE { border-color: var(--approve); }
+  .history-item.HOLD { border-color: var(--hold); }
+  .history-item.BLOCK { border-color: var(--block); }
+  .history-item .timestamp { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem; }
+  
+  #error { color: var(--block); font-weight: 600; margin-top: 1rem; display: none; padding: 1rem; background: #fee2e2; border-radius: 0.375rem; }
+  #loading { display: none; text-align: center; margin-top: 1rem; font-weight: 600; color: var(--primary); }
+  
+  .dim { display: flex; justify-content: space-between; font-size: 0.875rem; padding: 0.25rem 0; border-bottom: 1px solid #e5e7eb; }
+  .dim:last-child { border-bottom: none; }
+  
+  .loader { display: inline-block; vertical-align: middle; border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; margin-right: 8px; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  
+  mark { background-color: #fef08a; padding: 0 0.25rem; border-radius: 0.125rem; font-weight: 600; color: #b45309; }
 </style>
 </head>
 <body>
-<h1>TODO: name this screen for your persona's job</h1>
-
-<!-- TODO (1): inputs. Text is required; context is a JSON object your persona rules may use. -->
-<label for="text">Draft</label>
-<textarea id="text"></textarea>
-<button id="check">Check</button>
-
-<!-- TODO (2): sample picker. Fill this from /api/samples (see loadSamples below). -->
-<select id="samples"></select>
-<button id="simulate">Simulate with this sample</button>
-
-<!-- TODO (3): present the result for a human, not as raw JSON. Replace this <pre>. -->
-<pre id="out"></pre>
+<div class="container">
+  <!-- Left Column: Input -->
+  <div class="col">
+    <div class="panel">
+      <h1>Customer Support Agent Interface</h1>
+      <p style="color: #6b7280; font-size: 0.875rem; margin-top: -0.5rem; margin-bottom: 1.5rem;">Draft and evaluate customer communications before sending.</p>
+      
+      <div class="form-group">
+        <label>Load Sample Scenario</label>
+        <div class="samples" id="sample-buttons"></div>
+      </div>
+      
+      <div class="row">
+        <div class="form-group">
+          <label for="plan">Customer Plan</label>
+          <select id="plan">
+            <option value="Free">Free</option>
+            <option value="Pro">Pro</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="tenure">Tenure (Months)</label>
+          <input type="number" id="tenure" value="12" min="0">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="text">Email Draft</label>
+        <textarea id="text" placeholder="Type your email response here..."></textarea>
+      </div>
+      
+      <button id="check">Send to customer</button>
+      <div id="loading"><span class="loader"></span> Evaluating via Approval Gate...</div>
+      <div id="error"></div>
+    </div>
+    
+    <div class="panel">
+      <h2>Batch Samples Test</h2>
+      <button id="run-samples" style="background:#4b5563;">Run all samples</button>
+      <div id="batch-results" style="margin-top:1rem; display:flex; gap:1rem; overflow-x:auto; padding-bottom:0.5rem;"></div>
+    </div>
+  </div>
+  
+  <!-- Middle Column: Decision -->
+  <div class="col">
+    <div class="panel" style="min-height: 500px;">
+      <h2>Approval Decision</h2>
+      
+      <div id="ezio-banner" style="display:none; background:#fee2e2; color:#b91c1c; padding:0.75rem; border-radius:0.375rem; margin-bottom:1rem; font-weight:600; text-align:center;">
+        ⚠️ Ezio is degraded or unavailable. Falling back to default rules.
+      </div>
+      
+      <div style="text-align: center; margin: 2rem 0;">
+        <div id="decision-badge" class="badge NONE">PENDING</div>
+      </div>
+      
+      <div id="action-panel" class="action-panel">
+        Email Action Pending
+      </div>
+      
+      <div id="result-details" style="display: none;">
+        <div id="consequence" style="margin-bottom:1rem; font-size:0.875rem;"></div>
+      
+        <div class="result-section">
+          <h3>Highlighted Draft</h3>
+          <div id="highlighted-draft" style="font-family:inherit; font-size:0.875rem; white-space:pre-wrap; background:#fff; border:1px solid var(--border); padding:0.75rem; border-radius:0.375rem;"></div>
+        </div>
+      
+        <div class="result-section">
+          <h3>Reason</h3>
+          <p id="reason" style="margin: 0; font-weight: 500;"></p>
+        </div>
+        
+        <div class="result-section">
+          <h3>Evidence</h3>
+          <ul id="evidence" class="evidence-list"></ul>
+        </div>
+        
+        <div class="metrics">
+          <div class="metric-box">
+            <div class="metric-label">Ezio Tier</div>
+            <div id="ezio-tier" class="metric-value">-</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Ezio Score</div>
+            <div id="ezio-score" class="metric-value">-</div>
+          </div>
+        </div>
+        
+        <div class="result-section">
+          <h3>Dimensions</h3>
+          <div id="dimensions"></div>
+        </div>
+        
+        <div id="review-step" style="display:none; margin-top:1.5rem; padding:1.25rem; background:#fffbeb; border:1px solid #fcd34d; border-radius:0.375rem;">
+          <h3 style="margin-top:0; color:#b45309; font-size:1rem;">Review Required (HOLD)</h3>
+          <input type="text" id="review-reason" placeholder="Required reason..." style="margin-bottom:1rem; width:100%; box-sizing:border-box;">
+          <div style="display:flex; gap:1rem;">
+            <button id="btn-override" style="background:var(--approve);">Approve-override</button>
+            <button id="btn-reject" style="background:var(--block);">Reject</button>
+          </div>
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+  
+  <!-- Right Column: History & Stats -->
+  <div class="col" style="flex: 0.7;">
+    <div class="panel" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+      <h2 style="font-size: 1.125rem; margin-bottom: 0.75rem;">Session Stats</h2>
+      <div style="font-size: 0.875rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem;">
+          <span>Total: <strong id="stat-total">0</strong></span>
+          <span>Block Rate: <strong id="stat-rate">0%</strong></span>
+        </div>
+        <div style="display:flex; height:10px; border-radius:5px; overflow:hidden; margin-bottom: 1rem; background: #e5e7eb;">
+          <div id="bar-approve" style="width:0%; background:var(--approve);" title="Approve"></div>
+          <div id="bar-hold" style="width:0%; background:var(--hold);" title="Hold"></div>
+          <div id="bar-block" style="width:0%; background:var(--block);" title="Block"></div>
+        </div>
+        <div style="color: #6b7280; font-weight:600; margin-bottom: 0.25rem;">Top Reasons:</div>
+        <ul id="stat-reasons" style="margin:0; padding-left:1.25rem; color:#4b5563;">
+          <li>None yet</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom: 1.5rem;">
+      <h2>Recent Decisions</h2>
+      <div id="history">
+        <p style="color: #6b7280; font-size: 0.875rem;">No emails evaluated yet in this session.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Audit Trail</h2>
+      <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border); text-align:left;">
+            <th style="padding:0.5rem;">Time</th>
+            <th style="padding:0.5rem;">Action</th>
+            <th style="padding:0.5rem;">Reason</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <script>
-// Set this to the persona you chose: customer_support | paralegal | financial_analyst
 const PERSONA = "customer_support";
 
-// Plumbing: the one call every version of this page makes. Returns {decision, reason, evidence, action_executed, ...}.
+const SAMPLE_SCENARIOS = {
+  "Clean Thank You": {
+    text: "Hi there,\n\nThank you for reaching out! Your issue has been fully resolved on our end. Please let us know if you need any further assistance.\n\nBest,\nSupport Team",
+    context: { plan: "Pro", tenure_months: 12 }
+  },
+  "Wrong Discount": {
+    text: "Hi! Since you experienced an issue, here is a 90% discount on your next 5 years of service! We are so sorry for the inconvenience.",
+    context: { plan: "Free", tenure_months: 1 }
+  },
+  "Over-Promise": {
+    text: "Hello,\nWe will absolutely have this custom feature built and deployed for you by tomorrow morning, guaranteed. Our engineering team is dropping everything to work on it.",
+    context: { plan: "Enterprise", tenure_months: 24 }
+  },
+  "Hype": {
+    text: "Hey!!! Our new AI tool is magic! It will solve every single problem in your life instantly with zero effort!!! BUY NOW!",
+    context: { plan: "Pro", tenure_months: 6 }
+  }
+};
+
+const sampleContainer = document.getElementById("sample-buttons");
+for (const [name, data] of Object.entries(SAMPLE_SCENARIOS)) {
+  const btn = document.createElement("button");
+  btn.textContent = name;
+  btn.onclick = () => {
+    document.getElementById("text").value = data.text;
+    document.getElementById("plan").value = data.context.plan;
+    document.getElementById("tenure").value = data.context.tenure_months;
+  };
+  sampleContainer.appendChild(btn);
+}
+
+// API call
 async function decide(text, context = {}) {
-  const response = await fetch("/decide", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, persona: PERSONA, context }) });
+  const response = await fetch("/decide", { 
+    method: "POST", 
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, persona: PERSONA, context }) 
+  });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Request failed");
   return body;
 }
 
-// Plumbing: sample inputs from the practice set: [{id, text, context}, ...]
-async function loadSamples() {
-  const response = await fetch("/api/samples?persona=" + PERSONA);
-  return (await response.json()).samples;
-}
+const checkBtn = document.getElementById("check");
+const loadingEl = document.getElementById("loading");
+const errorEl = document.getElementById("error");
+const detailsEl = document.getElementById("result-details");
+const historyEl = document.getElementById("history");
+const ezioBanner = document.getElementById("ezio-banner");
 
-// TODO: show the result. Decision, reason, and evidence are what a person needs to decide; also show
-// whether the action ran (result.action_executed). Handle loading and errors (including a slow or down Ezio).
-function showResult(result) {
-  document.getElementById("out").textContent = JSON.stringify(result, null, 2);
-}
+let historyCount = 0;
 
-// TODO: wire the buttons. Disable them while a request is running; catch errors and show them.
-document.getElementById("check").onclick = async () => {
-  showResult(await decide(document.getElementById("text").value));
+const sessionStats = {
+  total: 0,
+  counts: { APPROVE: 0, HOLD: 0, BLOCK: 0 },
+  reasons: {}
 };
 
-// TODO: populate #samples from loadSamples(), then make "Simulate" send the chosen sample's text and context
-// through decide() and show clearly whether the action ran.
+function updateStats(result) {
+  sessionStats.total++;
+  if (sessionStats.counts[result.decision] !== undefined) {
+    sessionStats.counts[result.decision]++;
+  }
+  if (result.reason) {
+    sessionStats.reasons[result.reason] = (sessionStats.reasons[result.reason] || 0) + 1;
+  }
+  document.getElementById("stat-total").textContent = sessionStats.total;
+  const blockRate = Math.round((sessionStats.counts.BLOCK / sessionStats.total) * 100) || 0;
+  document.getElementById("stat-rate").textContent = blockRate + "%";
+  document.getElementById("bar-approve").style.width = (sessionStats.counts.APPROVE / sessionStats.total * 100) + "%";
+  document.getElementById("bar-hold").style.width = (sessionStats.counts.HOLD / sessionStats.total * 100) + "%";
+  document.getElementById("bar-block").style.width = (sessionStats.counts.BLOCK / sessionStats.total * 100) + "%";
+  const sortedReasons = Object.entries(sessionStats.reasons).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const reasonsList = document.getElementById("stat-reasons");
+  reasonsList.innerHTML = "";
+  for (const [r, count] of sortedReasons) {
+    const li = document.createElement("li");
+    li.textContent = `${count}x: ${r}`;
+    reasonsList.appendChild(li);
+  }
+}
+
+function highlightEvidence(draftText, evidenceList) {
+  let html = draftText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  if (evidenceList && evidenceList.length) {
+    evidenceList.forEach(ev => {
+      const tokens = ev.match(/\\$?\\d+(?:\\.\\d+)?%?/g);
+      if (tokens) {
+        tokens.forEach(t => {
+          const regex = new RegExp(`(${t.replace(/\\$/g, '\\\\$')})`, "g");
+          html = html.replace(regex, '<mark>$1</mark>');
+        });
+      }
+    });
+  }
+  return html.replace(/<mark><mark>/g, '<mark>').replace(/<\\/mark><\\/mark>/g, '</mark>');
+}
+
+function logAudit(action, reason) {
+  const tbody = document.getElementById("audit-body");
+  const tr = document.createElement("tr");
+  tr.style.borderBottom = "1px solid var(--border)";
+  tr.innerHTML = `
+    <td style="padding:0.5rem; white-space:nowrap;">${new Date().toLocaleTimeString()}</td>
+    <td style="padding:0.5rem; font-weight:bold; color:${action === 'OVERRIDE' ? 'var(--approve)' : 'var(--block)'}">${action}</td>
+    <td style="padding:0.5rem;">${reason} <br><span style="color:gray;font-size:0.75rem;">(reviewer note recorded)</span></td>
+  `;
+  tbody.prepend(tr);
+  document.getElementById("review-step").style.display = "none";
+}
+
+document.getElementById("btn-override").onclick = () => {
+  const r = document.getElementById("review-reason").value.trim();
+  if (!r) return alert("Reason required to override.");
+  logAudit("OVERRIDE", r);
+};
+document.getElementById("btn-reject").onclick = () => {
+  const r = document.getElementById("review-reason").value.trim();
+  if (!r) return alert("Reason required to reject.");
+  logAudit("REJECT", r);
+};
+
+let slowTimer;
+
+checkBtn.onclick = async () => {
+  const text = document.getElementById("text").value.trim();
+  if (!text) {
+    alert("Please enter an email draft.");
+    return;
+  }
+  if (text.length > 5000) {
+    alert("Error: Input is too long (over 5000 characters). Please shorten your draft.");
+    return;
+  }
+  
+  const context = {
+    plan: document.getElementById("plan").value,
+    tenure_months: parseInt(document.getElementById("tenure").value, 10) || 0
+  };
+  
+  checkBtn.disabled = true;
+  loadingEl.innerHTML = '<span class="loader"></span> Evaluating via Approval Gate...';
+  loadingEl.style.display = "block";
+  errorEl.style.display = "none";
+  detailsEl.style.display = "none";
+  ezioBanner.style.display = "none";
+  
+  slowTimer = setTimeout(() => {
+    loadingEl.innerHTML += '<br><span style="font-size:0.875rem;color:#f59e0b;margin-left:24px;">still checking...</span>';
+  }, 3000);
+  
+  const badge = document.getElementById("decision-badge");
+  badge.className = "badge NONE";
+  badge.textContent = "EVALUATING...";
+  
+  const actionPanel = document.getElementById("action-panel");
+  actionPanel.className = "action-panel";
+  actionPanel.textContent = "Simulated Action Pending";
+
+  try {
+    const result = await decide(text, context);
+    clearTimeout(slowTimer);
+    
+    if (result.reason && result.reason.toLowerCase().includes("unavailable")) {
+      ezioBanner.style.display = "block";
+    }
+    
+    let icon = "NONE";
+    if (result.decision === "APPROVE") icon = "✅ APPROVE";
+    if (result.decision === "HOLD") icon = "⚠️ HOLD";
+    if (result.decision === "BLOCK") icon = "🚫 BLOCK";
+    
+    badge.className = "badge " + result.decision;
+    badge.textContent = icon;
+    
+    const consequenceEl = document.getElementById("consequence");
+    if (result.decision === 'APPROVE') {
+      consequenceEl.innerHTML = "<strong>Consequence if approved:</strong> <span style='color:#065f46;'>The email will be sent to the customer immediately.</span>";
+    } else if (result.decision === 'HOLD') {
+      consequenceEl.innerHTML = "<strong>Consequence if approved:</strong> <span style='color:#b45309;'>The email is held for manual review.</span>";
+    } else {
+      consequenceEl.innerHTML = "<strong>Consequence if approved:</strong> <span style='color:#b91c1c;'>The email is strictly blocked and cannot be sent.</span>";
+    }
+    
+    if (result.action_executed) {
+      actionPanel.className = "action-panel executed";
+      actionPanel.innerHTML = "✅ EMAIL SENT SUCCESSFULLY<br><span style='font-size:0.875rem;font-weight:normal;color:#065f46'>Action executed by wrapper</span>";
+    } else {
+      actionPanel.className = "action-panel";
+      actionPanel.innerHTML = "❌ EMAIL NOT SENT<br><span style='font-size:0.875rem;font-weight:normal;'>Action blocked or held by gate</span>";
+    }
+    
+    document.getElementById("highlighted-draft").innerHTML = highlightEvidence(text, result.evidence);
+    
+    document.getElementById("reason").textContent = result.reason || "No reason provided.";
+    
+    const evList = document.getElementById("evidence");
+    evList.innerHTML = "";
+    if (result.evidence && result.evidence.length > 0) {
+      result.evidence.forEach(ev => {
+        const li = document.createElement("li");
+        li.textContent = ev;
+        evList.appendChild(li);
+      });
+    } else {
+      evList.innerHTML = "<li>No evidence recorded.</li>";
+    }
+    
+    document.getElementById("ezio-tier").textContent = result.tier || "N/A";
+    document.getElementById("ezio-score").textContent = result.score !== undefined ? result.score : "N/A";
+    
+    const dimContainer = document.getElementById("dimensions");
+    dimContainer.innerHTML = "";
+    if (result.dimensions && Object.keys(result.dimensions).length > 0) {
+      for (const [key, val] of Object.entries(result.dimensions)) {
+        const div = document.createElement("div");
+        div.className = "dim";
+        div.innerHTML = `<span>${key}</span> <strong>${val}</strong>`;
+        dimContainer.appendChild(div);
+      }
+    } else {
+      dimContainer.textContent = "No dimensions available.";
+    }
+    
+    if (result.decision === "HOLD") {
+      document.getElementById("review-step").style.display = "block";
+      document.getElementById("review-reason").value = "";
+    } else {
+      document.getElementById("review-step").style.display = "none";
+    }
+    
+    detailsEl.style.display = "block";
+    updateStats(result);
+    
+    if (historyCount === 0) historyEl.innerHTML = "";
+    historyCount++;
+    
+    const histItem = document.createElement("div");
+    histItem.className = "history-item " + result.decision;
+    
+    const time = new Date().toLocaleTimeString();
+    let preview = text.substring(0, 50) + (text.length > 50 ? "..." : "");
+    
+    histItem.innerHTML = `
+      <div class="timestamp">${time} • Plan: ${context.plan}</div>
+      <strong><span class="text-${result.decision}">${icon}</span></strong>
+      <div>"${preview}"</div>
+    `;
+    historyEl.prepend(histItem);
+    
+  } catch (err) {
+    errorEl.textContent = "Error: " + err.message;
+    errorEl.style.display = "block";
+    badge.className = "badge NONE";
+    badge.textContent = "ERROR";
+  } finally {
+    clearTimeout(slowTimer);
+    checkBtn.disabled = false;
+    loadingEl.style.display = "none";
+  }
+};
+
+document.getElementById("run-samples").onclick = async () => {
+  const btn = document.getElementById("run-samples");
+  btn.disabled = true;
+  btn.textContent = "Running batch...";
+  const container = document.getElementById("batch-results");
+  container.innerHTML = "";
+  
+  try {
+    const res = await fetch("/api/samples?persona=" + PERSONA);
+    const data = await res.json();
+    const samplesList = data.samples || [];
+    
+    for (const s of samplesList) {
+      const card = document.createElement("div");
+      card.style.cssText = "min-width:220px; padding:1rem; border:1px solid var(--border); border-radius:0.375rem; background:#fff; font-size:0.875rem; flex-shrink:0;";
+      card.innerHTML = `<strong>Sample ID:</strong> ${s.id || 'N/A'}<br><em>Evaluating...</em>`;
+      container.appendChild(card);
+      
+      try {
+        const checkRes = await decide(s.text, s.context || {});
+        let actionTxt = checkRes.action_executed ? "<span style='color:green;font-weight:bold;'>yes</span>" : "<span style='color:red;font-weight:bold;'>no</span>";
+        let icon = "NONE";
+        if (checkRes.decision === "APPROVE") icon = "✅";
+        if (checkRes.decision === "HOLD") icon = "⚠️";
+        if (checkRes.decision === "BLOCK") icon = "🚫";
+        card.innerHTML = `
+          <strong>Sample ID:</strong> ${s.id || 'N/A'}<br>
+          <strong>Decision:</strong> <span class="text-${checkRes.decision}">${icon} ${checkRes.decision}</span><br>
+          <strong>Action ran:</strong> ${actionTxt}<br>
+          <div style="margin-top:0.5rem; font-size:0.75rem; color:#6b7280; max-height:40px; overflow:hidden;">${s.text.substring(0,60)}...</div>
+        `;
+      } catch(e) {
+        card.innerHTML = `<strong>Sample ID:</strong> ${s.id || 'N/A'}<br><span style="color:red;">Error</span>`;
+      }
+    }
+  } catch (e) {
+    container.innerHTML = "<span style='color:red;'>Failed to load API samples</span>";
+  }
+  
+  btn.textContent = "Run all samples";
+  btn.disabled = false;
+};
 </script>
 </body>
 </html>
