@@ -1,6 +1,6 @@
 # Approval Gate — final run: Salauat
 
-Persona: `customer_support` · Run: 2026-10-10T22:13:56+00:00 · Harness 1.0 · Python 3.14.7
+Persona: `customer_support` · Run: 2026-10-10T22:32:50+00:00 · Harness 1.0 · Python 3.14.7
 
 **Measured score: 48.3 / 50** (held-out 33.3 / 35 + failure drills 15.0 / 15). The other 50 points come from the judges' rubric.
 
@@ -43,5 +43,5 @@ Persona: `customer_support` · Run: 2026-10-10T22:13:56+00:00 · Harness 1.0 · 
 ## Provenance
 
 - Tool digest `939643512c57edb1` (harness, mock, fixtures, persona data), wrapper digest `bdedfe49243906ae`
-- Raw wrapper audit and action logs from this run: `runs/Salauat-151257/`
-- Integrity: `2dac8b5d7958395a…` — submit `results/Salauat.json` unchanged.
+- Raw wrapper audit and action logs from this run: `runs/Salauat-153151/`
+- Integrity: `6a6f0b9b16283646…` — submit `results/Salauat.json` unchanged.

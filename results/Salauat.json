@@ -530,15 +530,15 @@
   ],
   "meta": {
     "harness_version": "1.0",
-    "started": "2026-10-10T22:12:57+00:00",
-    "finished": "2026-10-10T22:13:56+00:00",
+    "started": "2026-10-10T22:31:51+00:00",
+    "finished": "2026-10-10T22:32:50+00:00",
     "python": "3.14.7",
     "platform": "macOS-26.4.1-arm64-arm-64bit-Mach-O",
     "tool_digest": "939643512c57edb1",
     "wrapper_digest": "bdedfe49243906ae",
     "policy_todos": [],
     "wrapper_stderr_tail": "",
-    "run_logs": "runs/Salauat-151257",
+    "run_logs": "runs/Salauat-153151",
     "modes_run": [
       "down",
       "rate_limited",
@@ -550,7 +550,7 @@
     "dataset_id": "3c96e4ead309"
   },
   "integrity": {
-    "sha256": "2dac8b5d7958395a48a37d9b2842958240465c739707bb025f218a9b821a9cc2",
-    "hmac": "4bb070509dae0635883f56a4e214e12a2941fd3864eb2454bbc9a03d398a4911"
+    "sha256": "6a6f0b9b1628364611f146ea6f72cbdb91751ea4e9d9c886a8f199e368d59f6f",
+    "hmac": "78328d40d00221e12cf246334709a82043ce3dc280be215d0985e12a8894b5bd"
   }
 }
